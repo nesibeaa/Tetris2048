@@ -1,0 +1,287 @@
+import java.awt.Color; // the color type used in StdDraw
+import java.awt.Font; // the fpnt type used in StdDraw
+
+// A class used for modelling the game grid
+public class GameGrid {
+
+   // data fields
+   public int gridHeight, gridWidth; // the size of the game grid
+   public Tile[][] tileMatrix; // to store the tiles locked on the game grid
+   // the tetromino that is currently being moved on the game grid
+   public Tetromino currentTetromino = null;
+   public int total_score = 0;
+   public int clearRowDelayMerge = 20;
+   // the gameOver flag shows whether the game is over or not
+   private boolean gameOver = false;
+   private Color emptyCellColor; // the color used for the empty grid cells
+   private Color lineColor; // the color used for the grid lines
+   private Color boundaryColor; // the color used for the grid boundaries
+   private double lineThickness; // the thickness used for the grid lines
+   private double boxThickness; // the thickness used for the grid boundaries
+   private static Font font = new Font("Arial", Font.PLAIN, 14); // The font for tiles
+   private static Font font2 = new Font("Arial", Font.PLAIN, 22); // The font for on screen text (score)
+
+
+   // A constructor for creating the game grid based on the given parameters
+   public GameGrid(int gridH, int gridW) {
+      
+      // set the size of the game grid as the given values for the parameters
+      gridHeight = gridH;
+      gridWidth = gridW;
+      
+      // create the tile matrix to store the tiles locked on the game grid
+      tileMatrix = new Tile[gridHeight][gridWidth];
+     
+      // set the color used for the empty grid cells
+      emptyCellColor = new Color(45, 46, 46);
+      
+      // set the colors used for the grid lines and the grid boundaries
+      lineColor = new Color(59, 60, 61);
+      boundaryColor = new Color(27, 28, 28);
+      
+      // set the thickness values used for the grid lines and the grid boundaries
+      lineThickness = 0.002;
+      boxThickness = 10 * lineThickness;
+   }
+
+   // A setter method for the currentTetromino data field
+   public void setCurrentTetromino(Tetromino currentTetromino) {
+      this.currentTetromino = currentTetromino;
+   }
+
+   // A method used for displaying the game grid
+   public void display() {
+
+      // clear the background to emptyCellColor
+      StdDraw.clear(emptyCellColor);
+      this.printScore(); // printing the score event
+      //this.printNextTetromino(currentTetromino);
+      drawGrid(); // draw the game grid
+
+      // draw the current/active tetromino if it is not null (the case when the
+      // game grid is updated)
+      if (currentTetromino != null)
+         currentTetromino.draw();
+
+      // draw a box around the game grid
+      drawBoundaries();
+
+      // show the resulting drawing with a pause duration = 50 ms
+      StdDraw.show();
+      StdDraw.pause(50);
+      this.merge(); // merge event
+      this.clearLine(); // clearing lines event
+   }
+
+   // A method for drawing the cells and the lines of the game grid
+   public void drawGrid() {
+
+      // for each cell of the game grid
+      for (int row = 0; row < gridHeight; row++)
+         for (int col = 0; col < gridWidth; col++)
+
+            // draw the tile if the grid cell is occupied by a tile
+            if (tileMatrix[row][col] != null)
+               tileMatrix[row][col].draw(new Point((double) col, (double) row));
+               
+      // draw the inner lines of the grid
+      StdDraw.setPenColor(lineColor);
+      StdDraw.setPenRadius(lineThickness);
+
+      // x and y ranges for the game grid
+      double startX = -0.5, endX = gridWidth - 0.5;
+      double startY = -0.5, endY = gridHeight - 0.5;
+
+      for (double x = startX + 1; x < endX; x++) // vertical inner lines
+         StdDraw.line(x, startY, x, endY);
+      for (double y = startY + 1; y < endY; y++) // horizontal inner lines
+         StdDraw.line(startX, y, endX, y);
+         StdDraw.setPenRadius(); // reset the pen radius to its default value
+   }
+
+   // A method for drawing the boundaries around the game grid
+   public void drawBoundaries() {
+
+      // draw a bounding box around the game grid as a rectangle
+      StdDraw.setPenColor(boundaryColor); // using boundaryColor
+
+      // set the pen radius as boxThickness (half of this thickness is visible
+      // for the bounding box as its lines lie on the boundaries of the canvas)
+      StdDraw.setPenRadius(boxThickness);
+
+      // the center point coordinates for the game grid
+      double centerX = gridWidth / 2 - 0.5, centerY = gridHeight / 2 - 0.5;
+      StdDraw.rectangle(centerX, centerY, gridWidth / 2, gridHeight / 2);
+      StdDraw.setPenRadius(); // reset the pen radius to its default value
+   }
+
+   // A method for checking whether the grid cell with given row and column
+   // indexes is occupied by a tile or empty
+   public boolean isOccupied(double d, double e) {
+
+      // considering newly entered tetrominoes to the game grid that may have
+      // tiles out of the game grid (above the topmost grid row)
+      if (!isInside(d, e))
+         return false;
+
+      // the cell is occupied by a tile if it is not null
+      return tileMatrix[(int) d][(int) e] != null;
+   }
+
+   // A method for checking whether the cell with given row and column indexes
+   // is inside the game grid or not
+   public boolean isInside(double d, double e) {
+
+      if (d < 0 || d >= gridHeight)
+         return false;
+      if (e < 0 || e >= gridWidth)
+         return false;
+      return true;
+   }
+
+   // A method for merging the tiles with the same values
+   public void merge(){
+
+      int score = 0; // holding score
+
+      // Loop through the game grid
+      for(int row = 0; row < gridHeight ;row++){
+         for(int col = 0; col < gridWidth; col++){
+            
+            // Get the current tile and the tile below it
+            Tile currentTile = this.tileMatrix[row][col];
+            Tile bottomCurrentTile = null;
+
+            if(row-1 >= 0){
+            bottomCurrentTile = this.tileMatrix[row-1][col];
+         }
+            // Check if both tiles exist and have the same number value
+            if(bottomCurrentTile != null && currentTile != null){
+               if(currentTile.number == bottomCurrentTile.number){
+                  
+                  //Calculate the sum of the two tiles
+                  int sum = currentTile.number + bottomCurrentTile.number;
+                  score = currentTile.number + bottomCurrentTile.number;
+
+                  // Merge the bottom tile with the current tile
+                  bottomCurrentTile.mergedTile(sum);
+                 
+                  // Set the current tile to null and update the total score
+                  this.tileMatrix[row][col] = null;
+                  this.total_score += score;
+                  
+                  // Call the function to delay the merge before clearing a full line
+                  this.clearRowDelayMerge(row, col);
+               }
+            }
+         }
+      }
+   }
+
+   // A method to print the score on the screen
+   public void printScore(){
+
+     StdDraw.setPenColor(new Color(255, 255, 255));
+     StdDraw.setFont(font2);
+     StdDraw.text(13.7, 16, "SCORE");
+     StdDraw.text(13.7, 15, String.valueOf(this.total_score));
+     //System.out.println("Score: " + this.total_score); // Test purposes 
+   }
+     
+   public void printNextTetromino(Tetromino tet){
+
+         StdDraw.setPenColor(255, 255, 255);
+         Point position = new Point();
+         StdDraw.square(position.getX(), position.getY(), 1);
+   }
+   // A method to clear full lines
+   public void clearLine() {
+      
+      int score = 0; // holding the score
+
+      // Loop through the game grid 
+      for (int row = 0; row < gridHeight; row++) {
+          int full_cell = 0;
+          for (int col = 0; col < gridWidth; col++) {
+              
+              // Check if the current cell is filled with a tile
+              if (this.tileMatrix[row][col] != null) {
+                  full_cell += 1;
+                  score += this.tileMatrix[row][col].number; // Update the score
+              }
+          }
+          // If the current row is full, clear it and drop the tiles above it
+          if (full_cell == gridWidth) {
+              for (int col = 0; col < gridWidth; col++) {
+                  this.tileMatrix[row][col] = null;
+              }
+              this.total_score += score;
+              this.dropTetrisTiles(row);
+          }
+      }
+  }
+  
+  // A method to drop the hanging tiles
+   public void dropTetrisTiles(int targetRow) {
+
+   // Loop through the rows above the target row and the columns in the current row
+   for (int row = targetRow - 1; row >= 0; row--) {
+       for (int col = 0; col < gridWidth; col++) {
+         
+            // Check if the c urrent cell has a tile
+           if (this.tileMatrix[row][col] != null) {
+               Tile a = tileMatrix[row][col]; // Store the current tile 
+               tileMatrix[row - 1][col] = a; // Moves the tile down one row
+               tileMatrix[row][col] = null; // Clears the current cell
+           }
+       }
+   }
+}
+  
+   // A method that locks the tiles of the landed tetromino on the game grid while
+   // checking if the game is over due to having tiles above the topmost grid row.
+   // The method returns true when the game is over and false otherwise.
+   public boolean updateGrid(Tile[][] tilesToLock, Point pos2) {
+
+      // necessary for the display method to stop displaying the tetromino
+      currentTetromino = null;
+
+      // lock the tiles of the current tetromino (tilesToLock) on the game grid
+      int nRows = tilesToLock.length, nCols = tilesToLock[0].length;
+      for (int col = 0; col < nCols; col++) {
+         for (int row = 0; row < nRows; row++) {
+            // place each tile onto the game grid
+            if (tilesToLock[row][col] != null) {
+               // compute the position of the tile on the game grid
+               int posX = (int) (pos2.x + col);
+               int posY = (int) (pos2.y + (nRows - 1) - row);
+               Point pos = new Point((double) posX, (double)posY);
+               if (isInside(pos.getY(), pos.getX()))
+                  tileMatrix[(int) pos.getY()][(int) pos.getX()] = tilesToLock[row][col];
+               // the game is over if any placed tile is above the game grid
+               else
+                  gameOver = true;
+            }
+         }
+      }
+      // return the value of the gameOver flag
+      return gameOver;
+   }
+
+   // A method to delay the merge event when a full line is cleared 
+   public void clearRowDelayMerge(int row, int col){
+
+      // Calculate the number of rows below the current row
+      int count = gridHeight - (row + 1);
+      // Loop through each row below the current row
+      for(int cTile = 1; cTile < count; cTile++){
+         //Check if the current cell has a tile
+         if(this.tileMatrix[row + cTile][col] != null){
+            Tile a = this.tileMatrix[row + cTile][col]; // store the current tile
+            this.tileMatrix[row + cTile - 1][col] = a; // move down one row
+            this.tileMatrix[row + cTile][col] = null; // clear the current cell
+            
+         }
+      }
+   }
+}
